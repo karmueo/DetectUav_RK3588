@@ -1,136 +1,304 @@
-# DetectUav_RK3588
-本项目主要参考[VideoPipe](https://github.com/sherlockchou86/VideoPipe.git)开源项目, 将其移植到RK3588平台，搭配硬件编解码，可用来构建视频分析应用。
+# DetectUav_RK3588 使用文档
 
-### 模型支持
+本项目基于RK3588的芯片，使用YOLO26检测模型对低空无人机的实时检测，在OrangePi-5Plus和OrangePi-5Ultra进行了测试，FPS超过50.
 
-项目支持瑞芯微RKNN平台目标检测、图像分类以及关键点检测等视频分析应用，支持模型如下表。在models文件夹下定义了各类模型的实现方法。
+## 1. 主程序做了什么
 
-| 类型 | 目标检测 | 分类 | 关键点 | 目标追踪 |
-|:------|:------------:|:------------:|:------------:|:------------:|
-| 模型 | YOLOv5至v8 | 任意 | RTMPose | ByteTrack |
+当前主程序为 `main.cc` 构建的是一条固定主链路：
 
-### 功能介绍
+`vp_mpp_sdl_src_node -> vp_yolo26_preprocess_node -> vp_rk_first_yolo26 -> vp_osd_node -> vp_bgr_to_nv12_node -> vp_nv12_sdl_des_node`
 
-主要文件夹目录：
-- vp_node (定义了支持节点推理的各个模块、参考自VideoPipe项目, 重新定义了拉流节点和大部分推理节点)
-- videocodec (RK平台视频流处理，硬件码来自官网案例, 并参考了[trt_yolo_video_pipeline](https://github.com/1461521844lijin/trt_yolo_video_pipeline.git)项目的FFmpeg编解码实现)
-  
-vp_node文件夹：
-- nodes (各个节点定义)
-  - infer (定义了推理节点，根据节点处理顺序可实现目标检测+分类、目标检测+关键点、目标检测+目标检测三类组合任务)
-  - osd (绘制节点、可绘制目标检测、关键点)
-  - vp_ffmpeg_src_node.cpp (使用FFmpeg完成拉流或者文件读写节点、隔帧检测时可控制yuv转换rgb过程，降低cpu损耗, 这个需要保证hevc_rkmpp以及h264_rkmpp等插件正常使用，部分机器安装了插件有时也会产生RGA大于4G错误，不知道如何解决)
-  - vp_rk_rtsp_src_node.h  (视频流读取节点，使用mpp实现硬件编解码过程，也可控制yuv至rgb转换过程, 不需要使用插件)
+含义如下：
 
-### 实现案例
+- `vp_mpp_sdl_src_node`：用 FFmpeg demux + Rockchip MPP 硬解码读取本地视频，输出 NV12 帧
+- `vp_yolo26_preprocess_node`：用 RGA 完成 NV12 预处理，产出模型输入和 BGR 图
+- `vp_rk_first_yolo26`：加载 RKNN 的 YOLO26 模型做检测
+- `vp_osd_node`：把检测框与标签绘制到画面
+- `vp_bgr_to_nv12_node`：将 OSD 后 BGR 转回 NV12
+- `vp_nv12_sdl_des_node`：SDL2 显示 NV12 画面（窗口 ESC/关闭可退出）
 
-在程序中定义节点及流向即可，案例如下：
-```
-/*-------------------------------------------
-                  Main Functions
--------------------------------------------*/
-int main(int argc, char** argv) 
-{
-    // 定义log
-    VP_SET_LOG_INCLUDE_CODE_LOCATION(false);
-    VP_SET_LOG_INCLUDE_THREAD_ID(false);
-    VP_SET_LOG_LEVEL(vp_utils::INFO);
-    VP_LOGGER_INIT();
+## 2. 运行前准备
 
-    // 源节点、可使用文件、图片以及rtsp流。需要Gst支持对应插件，若使用FFmpeg需要编译mpp插件，且保证正常工作
-    auto src_0 = std::make_shared<vp_nodes::vp_file_src_node>("rtsp_src_0", 0, "assets/videos/person.mp4", 1.0, true, "mppvideodec");
-    // auto src_0 = std::make_shared<vp_nodes::vp_rk_rtsp_src_node>("rtsp_src_0", 0, "rtsp://admin:hk123456@192.168.3.26:554/Streaming/Channels/301");
-    // auto src_0 = std::make_shared<vp_nodes::vp_ffmpeg_src_node>("rtsp_src_0", 0, "rtsp://admin:hk123456@192.168.3.26:554/Streaming/Channels/301");
+### 2.1 硬件与系统建议
 
-    // 推理初始节点, 一般为目标检测
-    auto yolo_0     = std::make_shared<vp_nodes::vp_rk_first_yolo>("rk_yolo_0", "assets/configs/person.json");    
-    auto track_0    = std::make_shared<vp_nodes::vp_sort_track_node>("track_0");
+- 硬件：RK3588（或同类支持 RKNN/MPP/RGA 的板卡），在OrangePi-5Plus和OrangePi-5Ultra进行了测试通过。
+- 系统：Ubuntu 22.04 / Debian aarch64
+- 架构：`aarch64`
 
-    // 第二推理节点，用于处理子目标、例如目标检测后对框内物体再检测或分类
-    // auto yolo_sub_0 = std::make_shared<vp_nodes::vp_rk_second_yolo>("rk_yolo_sub_0", "assets/configs/phone.json");
-    auto pose_0 = std::make_shared<vp_nodes::vp_rk_second_rtmpose>("rk_rtmpose_0", "assets/configs/rtmpose.json", std::vector<int>{0});
-    auto cls_0  = std::make_shared<vp_nodes::vp_rk_second_cls>("rk_cls_0", "assets/configs/stand_sit.json", std::vector<int>{0});
+### 2.2 安装系统依赖
 
-    // 绘制节点    
-    auto osd_0      = std::make_shared<vp_nodes::vp_osd_node>("osd_0");
-    auto pose_osd_0 = std::make_shared<vp_nodes::vp_pose_osd_node>("pose_osd_0");
+你的系统镜像中，以下包已预装并 `hold` 锁定（如 `ffmpeg`、`libavcodec-dev`、`libavformat-dev`、`libavutil-dev`、`libswscale-dev`、`libswresample-dev`、`librockchip-mpp-dev`、`librga-dev` 等），**这些包不需要重复安装，也不要 `unhold`**。
 
-    // 终止节点、可使用rtmp推流节点、屏幕显示节点或不做任何操作
-    // auto des_0 = std::make_shared<vp_nodes::vp_rtmp_des_node>("rtmp_des_0", 0, "rtmp://192.168.3.100:1935/stream");
-    // auto des_0 = std::make_shared<vp_nodes::vp_fake_des_node>("fake_des_0", 0);
-    // auto des_0 = std::make_shared<vp_nodes::vp_file_des_node>("file_des_0", 0, "out");
-    auto des_0 = std::make_shared<vp_nodes::vp_screen_des_node>("screen_des_0", 0);
+针对当前 `main.cc` 编译/运行，通常只需补装还缺少的包：
 
-    // 消息节点
-    auto msg_broker = std::make_shared<vp_nodes::vp_json_console_broker_node>("broker_0");
-
-    // 节点连接操作
-    yolo_0->attach_to({src_0});
-    track_0->attach_to({yolo_0});
-    cls_0->attach_to({track_0});
-    pose_0->attach_to({cls_0});
-    osd_0->attach_to({pose_0});
-    pose_osd_0->attach_to({osd_0});
-    msg_broker->attach_to({pose_osd_0});
-    des_0->attach_to({msg_broker});
-
-    src_0->start();
-    vp_utils::vp_analysis_board board({src_0});
-    board.display();
-
-    return 0;
-}
-```
-![](./assets/sources/sample.png)
-### 项目构建
-
-平台
-- Ubuntu 22.04 jammy aarch64 / Debain (已测试香橙派5B平台ubuntu系统和Rock5B平台Armbain系统)
-
-环境
-- C++ 17
-- OpenCV >= 4.6 (需支持FreeType, 否则需要改写部分OSD节点)
-- GStreamer (官网推荐完整安装，需额外支持rkmpp插件)
-- FFmpeg >= 4.3 (需要编译mpp插件或使用推荐源)
-
-需要校对cmake目录下的common.cmake文件中定义了FFmpeg与OpenCV位置, 如果不符合则需要修改。构建项目后执行build/bin下可执行文件即可运行案例
-```
-cd DetectUav_RK3588
-./build-linux.sh
-build/bin/detectuav_rk3588
-```
-
-### 本地 MP4 文件显示示例
-
-按以下步骤可快速跑通“读取本地 mp4 并显示”：
-
-1. 准备测试视频（仓库已自带示例）：
-```
-assets/videos/person.mp4
-```
-2. 确认 `main.cc` 使用文件源节点，且路径指向本地 mp4：
-```cpp
-auto src_0 = std::make_shared<vp_nodes::vp_file_src_node>(
-      "file_src_0", 0, "assets/videos/person.mp4", 1.0, true, "mppvideodec");
-```
-3. 构建并运行：
 ```bash
-./build-linux.sh
-build/detectuav_rk3588
+sudo apt update
+
+# 1) SDL2 开发包（若未安装）
+sudo apt install -y libsdl2-dev
+
+# 2) 仅在使用 build-linux.sh 时需要（该脚本默认使用 aarch64-linux-gnu-gcc/g++）
+sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 ```
-4. 程序启动后会弹出显示窗口（`vp_screen_des_node`），可看到检测/跟踪/关键点叠加结果。
 
-如需替换为你自己的视频，只需把 `main.cc` 中第三个参数改为你的 mp4 路径（例如 `"/data/test/demo.mp4"`），重新编译后运行即可。
+说明：
 
-若无法显示，优先检查：
+- 若你不使用 `build-linux.sh`，而是使用第 4.2 节手动 `cmake`，可不安装交叉编译器
+- 依赖策略固定为“仅安装缺失包”，不升级锁定系统包
+
+### 2.3 校验仓库内三方库是否齐全
+
+仓库通过 `3rdparty/CMakeLists.txt` 直接链接以下库文件：
+
+- `3rdparty/rknpu2/Linux/aarch64/librknnrt.so`
+- `3rdparty/mpp/Linux/aarch64/librockchip_mpp.so`
+- `3rdparty/librga/Linux/aarch64/librga.so`
+- `3rdparty/zlmediakit/aarch64/libmk_api.so`
+- `3rdparty/yaml-cpp/lib/libyaml-cpp.a`
+
+如果这些文件缺失，需先补齐对应 SDK/运行库。
+
+### 2.4 安装/更新 `rknn-toolkit2`（重点：版本匹配）
+
+你遇到的报错：
+
+```text
+Invalid RKNN model version 6
+rknn_init, load model failed!
+```
+
+通常是 **`.rknn` 模型版本高于当前 `librknnrt.so` 运行时版本** 导致。  
+当前项目依赖 `https://github.com/airockchip/rknn-toolkit2` 提供的 RKNN 运行库，请按以下步骤安装并同步：
+
+#### 2.4.1 使用项目子模块获取源码（推荐）
+
+项目已将 `rknn-toolkit2` 作为子模块放在 `3rdparty/rknn-toolkit2`。
+
+首次拉取或切换分支后，执行：
+
 ```bash
-gst-launch-1.0 --version
+cd /home/orangepi/work/DetectUav_RK3588
+git submodule update --init --recursive 3rdparty/rknn-toolkit2
+```
+
+如需固定到特定版本（与导出模型一致），可在子模块目录切换 tag/commit（示例）：
+
+```bash
+cd /home/orangepi/work/DetectUav_RK3588/3rdparty/rknn-toolkit2
+git tag -l
+git checkout <与你导出模型一致的tag>
+```
+
+#### 2.4.2 在 RK3588 板端安装/更新运行时库
+
+`rknn-toolkit2` 仓库内的 `rknpu2` 已包含预编译运行时库。对 `aarch64` 板端，使用：
+
+```bash
+cd /home/orangepi/work/DetectUav_RK3588/3rdparty/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api/aarch64
+ls -l librknnrt.so rknn_api.h
+
+# 安装到系统（可选，但推荐）
+sudo cp librknnrt.so /usr/lib/
+sudo cp ../include/rknn_api.h /usr/include/
+sudo ldconfig
+```
+
+#### 2.4.3 同步到当前项目依赖目录（必须）
+
+本项目编译时链接的是仓库内 `3rdparty/rknpu2/Linux/aarch64/librknnrt.so`，因此还需覆盖该文件：
+
+```bash
+cd /home/orangepi/work/DetectUav_RK3588
+cp 3rdparty/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api/aarch64/librknnrt.so \
+   3rdparty/rknpu2/Linux/aarch64/librknnrt.so
+cp 3rdparty/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api/include/rknn_api.h \
+   3rdparty/rknpu2/include/rknn_api.h
+cp 3rdparty/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api/include/rknn_custom_op.h \
+   3rdparty/rknpu2/include/rknn_custom_op.h
+cp 3rdparty/rknn-toolkit2/rknpu2/runtime/Linux/librknn_api/include/rknn_matmul_api.h \
+   3rdparty/rknpu2/include/rknn_matmul_api.h
+```
+
+更新后重新编译并安装：
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j4
+cmake --install build
+```
+
+### 2.5 准备 YOLO26 配置与模型
+
+`main.cc` 默认使用：
+
+- 配置文件：`assets/configs/yolo26.json`
+- 其中 `model_path` 当前是绝对路径：`/mnt/nfs/weights/rk3588/yolo26n_352_1c_no-p2.rknn`
+
+你必须保证该 `.rknn` 存在；否则程序会在初始化推理节点时报错。
+
+建议修改 `assets/configs/yolo26.json` 中的 `model_path` 为你本机可访问路径。
+
+> 注：关于.rknn模型的训练和生成，请参考[fast_yolo26_rknn](https://github.com/karmueo/fast_yolo26_rknn)
+
+### 2.6 准备输入视频
+
+`main.cc` 默认输入为 `/mnt/nfs/datasets/video/uav.mp4`。你可以：
+
+- 直接通过命令行第 1 个参数传入本地视频路径（推荐）
+- 或修改 `main.cc` 默认值
+
+注意：当前硬解码节点只支持 `H264/H265` 视频流（封装可为 MP4 等）。
+
+## 3. 命令行参数说明
+
+程序参数顺序如下：
+
+```bash
+detectuav_rk3588 [input_video] [sdl_video_driver] [sdl_render_driver] [yolo26_config] [screen_sink]
+```
+
+- `argv[1] input_video`：输入视频路径
+- `argv[2] sdl_video_driver`：SDL 视频驱动（如 `x11` / `wayland` / `kmsdrm`）
+- `argv[3] sdl_render_driver`：SDL 渲染驱动（如 `opengl` / `opengles2`）
+- `argv[4] yolo26_config`：YOLO26 JSON 配置路径
+- `argv[5] screen_sink`：保留参数，当前 `main.cc` 链路未实际使用
+
+## 4. 编译
+
+### 4.1 方式一：项目脚本（`build-linux.sh`）
+
+```bash
+cd /home/orangepi/work/DetectUav_RK3588
+./build-linux.sh
+```
+
+脚本会执行：
+
+1. `cmake ../`
+2. `make -j4`
+3. `make install`
+
+安装目标由根 `CMakeLists.txt` 指定为 `build/bin`。
+
+### 4.2 方式二：手动 CMake（推荐可控）
+
+```bash
+cd /home/orangepi/work/DetectUav_RK3588
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j4
+cmake --install build
+```
+
+如果你在 RK3588 板端本机编译，且没有 `aarch64-linux-gnu-gcc/g++`，优先用此方式（不依赖脚本里的交叉编译器变量）。
+
+## 5. 运行
+
+### 5.1 使用 `run-main.sh`（推荐）
+
+```bash
+cd /home/orangepi/work/DetectUav_RK3588
+./run-main.sh
+```
+
+脚本默认值：
+
+```bash
+video_path=/mnt/nfs/datasets/video/uav.mp4
+sdl_video_driver=自动
+sdl_render_driver=自动
+yolo26_config=assets/configs/yolo26.json
+screen_sink=autovideosink
+```
+
+脚本支持覆盖参数：
+
+```bash
+./run-main.sh [video_path] [sdl_video_driver] [sdl_render_driver] [yolo26_config] [screen_sink]
+```
+
+示例（X11）：
+
+```bash
+./run-main.sh assets/videos/person.mp4 x11 opengl assets/configs/yolo26.json
+```
+
+示例（Wayland）：
+
+```bash
+./run-main.sh assets/videos/person.mp4 wayland opengles2 assets/configs/yolo26.json
+```
+
+### 5.2 手动运行二进制（备选）
+
+```bash
+cd /home/orangepi/work/DetectUav_RK3588
+export LD_LIBRARY_PATH=$PWD/build/bin/lib:$LD_LIBRARY_PATH
+./build/bin/detectuav_rk3588 assets/videos/person.mp4 x11 opengl assets/configs/yolo26.json
+```
+
+### 5.3 退出方式
+
+- 在程序终端按 `ESC`
+- SDL 窗口按 `ESC`
+- 关闭 SDL 窗口
+- 终端按 `Ctrl + C`
+
+## 6. 常见问题排查
+
+### 6.1 `load yolo26 config failed` / 模型加载失败
+
+- 检查 `assets/configs/yolo26.json` 是否存在、JSON 格式是否正确
+- 检查 `model_path` 是否指向真实 `.rknn` 文件
+- 若日志包含 `Invalid RKNN model version X`，请按 **2.4 节** 更新 `librknnrt.so`，确保模型导出版本与运行时版本一致
+
+### 6.2 `unsupported codec, only H264/H265 are supported`
+
+- 当前 `vp_mpp_sdl_src_node` 仅支持 H264/H265
+- 请更换输入视频编码，或自行扩展源码中的 codec 映射逻辑
+
+### 6.3 SDL 初始化失败（无窗口）
+
+- 检查显示环境是否可用（X11/Wayland/KMS）
+- 切换 `sdl_video_driver` 与 `sdl_render_driver` 参数组合
+- 纯命令行无图形环境下，窗口显示节点不可用
+
+### 6.4 找不到动态库（`librknnrt.so`/`librockchip_mpp.so` 等）
+
+- 确认执行了 `make install` 并生成 `build/bin/lib`
+- 运行前设置：
+
+```bash
+export LD_LIBRARY_PATH=$PWD/build/bin/lib:$LD_LIBRARY_PATH
+```
+
+### 6.5 打开视频失败
+
+- 确认命令行传入的视频路径真实存在
+- 确认文件可读：
+
+```bash
 ls -l assets/videos/person.mp4
 ```
 
-### 参考项目
+## 7. 推荐的首次跑通流程
 
-[VideoPipe](https://github.com/sherlockchou86/VideoPipe.git): 主要参考项目，大部分节点定义和实现均由该仓库提供 \
-[trt_yolo_video_pipeline](https://github.com/1461521844lijin/trt_yolo_video_pipeline.git) 参考了FFmpeg的编解码的实现 \
-[rknn_model_zoo](https://github.com/airockchip/rknn_model_zoo) 参考了YOLO系列和分类模型实现，完成了C++类封装 \
-[RTMPose-Deploy](https://github.com/HW140701/RTMPose-Deploy) 参考了RTMPose后处理方案，放弃了仿射变换实现，转用LetterBox实现。
+```bash
+cd /home/orangepi/work/DetectUav_RK3588
+
+# 1) 修改 yolo26 配置中的 model_path（指向你真实存在的 .rknn）
+vim assets/configs/yolo26.json
+
+# 2) 编译 + 安装
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j4
+cmake --install build
+
+# 3) 运行（推荐脚本方式）
+./run-main.sh assets/videos/person.mp4 x11 opengl assets/configs/yolo26.json
+```
+
+## 参考项目
+
+- [RK_VideoPipe](https://github.com/alexw914/RK_VideoPipe): 本项目的 RK3588 适配版本
+- [VideoPipe](https://github.com/sherlockchou86/VideoPipe): 原始视频分析流水线框架
+- [rknn-toolkit2](https://github.com/airockchip/rknn-toolkit2): 瑞芯微 NPU 推理工具包
