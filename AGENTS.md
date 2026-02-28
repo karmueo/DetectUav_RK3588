@@ -13,7 +13,7 @@
 - `./build-linux.sh`: standard Linux build (creates `build/`, runs `cmake`, `make`, `make install`).
 - `cmake -S . -B build && cmake --build build -j4`: explicit out-of-source build for iteration.
 - `cmake --install build`: installs binaries/libs to `build/bin` per root `CMakeLists.txt`.
-- `build/bin/rk_videopipe`: run the default C++ demo pipeline.
+- `build/bin/detectuav_rk3588`: run the default C++ demo pipeline.
 - `cd python && python3 test_model.py`: run image-based Python model smoke test.
 - `cd python && python3 test_count.py`: run video counting/tracking smoke test.
 

@@ -1,5 +1,5 @@
 /*
- * RK_VideoPipe 简化示例：MP4 读取 + MPP 硬解 + NV12 直显 SDL + 数据流窗口
+ * DetectUav_RK3588 简化示例：MP4 读取 + MPP 硬解 + NV12 直显 SDL + 数据流窗口
  */
 
 #include <atomic>

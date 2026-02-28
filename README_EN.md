@@ -1,4 +1,4 @@
-# RK_VideoPipe
+# DetectUav_RK3588
 This repo mainly refered [VideoPipe](https://github.com/sherlockchou86/VideoPipe.git) project.I applied this project in RK3588 platform.
 This repo can do some video analysis Task.
 
@@ -98,9 +98,9 @@ Environment
 
 You can configure OpenCV and FFmpeg in cmake/common.cmake. You don't need install other libraries. Build this repo test samples, just run:
 ```
-cd RK_VideoPipe
+cd DetectUav_RK3588
 ./build-linux.sh
-build/bin/rk_videopipe
+build/bin/detectuav_rk3588
 ```
 
 ### Refer

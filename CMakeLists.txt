@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-project(rk_videopipe)
+project(detectuav_rk3588)
 
 # 默认使用 Release，允许通过 -DCMAKE_BUILD_TYPE 覆盖。
 if (NOT CMAKE_BUILD_TYPE)
@@ -39,10 +39,10 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/bytetrack bytetrack)
 add_subdirectory(${CMAKE_SOURCE_DIR}/videocodec videocodec)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vp_node vp_node)
 
-add_executable(rk_videopipe
+add_executable(detectuav_rk3588
     main.cc
 )
-target_link_libraries(rk_videopipe
+target_link_libraries(detectuav_rk3588
     ${COMMON_LIBS}
     ${BASE_LIBS}
     rknn_models
@@ -50,10 +50,10 @@ target_link_libraries(rk_videopipe
     vp_node
 )
 
-add_executable(rk_videopipe_simple
+add_executable(detectuav_rk3588_simple
     simple_main.cc
 )
-target_link_libraries(rk_videopipe_simple
+target_link_libraries(detectuav_rk3588_simple
     ${COMMON_LIBS}
     ${BASE_LIBS}
     rknn_models
@@ -61,10 +61,10 @@ target_link_libraries(rk_videopipe_simple
     vp_node
 )
 
-add_executable(rk_videopipe_gst
+add_executable(detectuav_rk3588_gst
     gst_main.cc
 )
-target_link_libraries(rk_videopipe_gst
+target_link_libraries(detectuav_rk3588_gst
     ${COMMON_LIBS}
     ${BASE_LIBS}
     rknn_models
@@ -73,8 +73,8 @@ target_link_libraries(rk_videopipe_gst
 )
 
 install(TARGETS  ${PROJECT_NAME} DESTINATION .)
-install(TARGETS rk_videopipe_simple DESTINATION .)
-install(TARGETS rk_videopipe_gst DESTINATION .)
+install(TARGETS detectuav_rk3588_simple DESTINATION .)
+install(TARGETS detectuav_rk3588_gst DESTINATION .)
 install(PROGRAMS ${BASE_LIBS} DESTINATION lib)
 install(PROGRAMS ${RKNN_RT_LIB} DESTINATION lib)
 install(PROGRAMS ${MPP_LIB} DESTINATION lib)

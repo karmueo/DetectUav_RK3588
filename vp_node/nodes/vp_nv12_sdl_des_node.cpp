@@ -72,7 +72,7 @@ bool vp_nv12_sdl_des_node::init_sdl(int frame_width, int frame_height) {
         window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
     }
 
-    sdl_window = SDL_CreateWindow("RK_VideoPipe NV12 SDL",
+    sdl_window = SDL_CreateWindow("DetectUav_RK3588 NV12 SDL",
                                   SDL_WINDOWPOS_CENTERED,
                                   SDL_WINDOWPOS_CENTERED,
                                   frame_width,

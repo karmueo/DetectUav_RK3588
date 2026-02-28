@@ -1,4 +1,4 @@
-# RK_VideoPipe
+# DetectUav_RK3588
 本项目主要参考[VideoPipe](https://github.com/sherlockchou86/VideoPipe.git)开源项目, 将其移植到RK3588平台，搭配硬件编解码，可用来构建视频分析应用。
 
 ### 模型支持
@@ -95,9 +95,9 @@ int main(int argc, char** argv)
 
 需要校对cmake目录下的common.cmake文件中定义了FFmpeg与OpenCV位置, 如果不符合则需要修改。构建项目后执行build/bin下可执行文件即可运行案例
 ```
-cd RK_VideoPipe
+cd DetectUav_RK3588
 ./build-linux.sh
-build/bin/rk_videopipe
+build/bin/detectuav_rk3588
 ```
 
 ### 本地 MP4 文件显示示例
@@ -116,7 +116,7 @@ auto src_0 = std::make_shared<vp_nodes::vp_file_src_node>(
 3. 构建并运行：
 ```bash
 ./build-linux.sh
-build/rk_videopipe
+build/detectuav_rk3588
 ```
 4. 程序启动后会弹出显示窗口（`vp_screen_des_node`），可看到检测/跟踪/关键点叠加结果。
 

@@ -1,5 +1,5 @@
 /*
- * RK_VideoPipe 主程序（MPP 硬解码 + YOLO26 推理 + OSD 显示 + NV12 SDL 预览）
+ * DetectUav_RK3588 主程序（MPP 硬解码 + YOLO26 推理 + OSD 显示 + NV12 SDL 预览）
  */
 
 #include <atomic>

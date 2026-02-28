@@ -13,7 +13,7 @@
 
 int main(int argc, char** argv) 
 {
-    std::filesystem::current_path("/root/.vs/RK_VideoPipe/41b606b4-6586-4527-af89-a26a0ab1539d/src");
+    std::filesystem::current_path("/root/.vs/DetectUav_RK3588/41b606b4-6586-4527-af89-a26a0ab1539d/src");
     auto begin_time = std::chrono::steady_clock::now();
     double duration = .0;
     cv::VideoCapture cap;

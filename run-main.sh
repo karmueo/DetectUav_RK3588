@@ -4,13 +4,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-BIN_PATH="${ROOT_DIR}/build/bin/rk_videopipe"
+BIN_PATH="${ROOT_DIR}/build/bin/detectuav_rk3588"
 if [[ ! -x "${BIN_PATH}" ]]; then
-  BIN_PATH="${ROOT_DIR}/build/rk_videopipe"
+  BIN_PATH="${ROOT_DIR}/build/detectuav_rk3588"
 fi
 
 if [[ ! -x "${BIN_PATH}" ]]; then
-  echo "[ERROR] rk_videopipe not found. Build first:"
+  echo "[ERROR] detectuav_rk3588 not found. Build first:"
   echo "  ./build-linux.sh"
   echo "or:"
   echo "  cmake -S . -B build && cmake --build build -j4 && cmake --install build"

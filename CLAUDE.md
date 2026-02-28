@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-RK_VideoPipe 是一个移植到 RK3588 平台（瑞芯微 SoC）的视频分析流水线框架。它提供了硬件加速的视频处理（通过 MPP 进行编解码）、AI 推理（通过 RKNN），以及基于节点架构的计算机视觉应用构建方案。
+DetectUav_RK3588 是一个移植到 RK3588 平台（瑞芯微 SoC）的视频分析流水线框架。它提供了硬件加速的视频处理（通过 MPP 进行编解码）、AI 推理（通过 RKNN），以及基于节点架构的计算机视觉应用构建方案。
 
 本项目基于 [VideoPipe](https://github.com/sherlockchou86/VideoPipe) 开源项目，并结合了瑞芯微的硬件加速库。
 
@@ -20,7 +20,7 @@ cmake --build build -j4
 cmake --install build
 
 # 运行主程序
-build/bin/rk_videopipe
+build/bin/detectuav_rk3588
 ```
 
 **注意**：交叉编译工具链设置为 `aarch64-linux-gnu`。编译器设置见 `build-linux.sh`。
