@@ -2,20 +2,33 @@
 
 本项目基于RK3588的芯片，使用YOLO26检测模型对低空无人机的实时检测，在OrangePi-5Plus和OrangePi-5Ultra进行了测试，FPS超过50.
 
+## 程序运行展示
+
+![无人机检测效果](assets/images/无人机_RK_VideoPipe.png)
+
+[无人机检测演示视频](assets/videos/无人机检测RK3588.mp4)
+
 ## 1. 主程序做了什么
 
-当前主程序为 `main.cc` 构建的是一条固定主链路：
+当前主程序为 `main.cc`，启动后会构建并运行一条固定的视频检测链路：
 
 `vp_mpp_sdl_src_node -> vp_yolo26_preprocess_node -> vp_rk_first_yolo26 -> vp_osd_node -> vp_bgr_to_nv12_node -> vp_nv12_sdl_des_node`
 
-含义如下：
+各节点职责如下：
 
-- `vp_mpp_sdl_src_node`：用 FFmpeg demux + Rockchip MPP 硬解码读取本地视频，输出 NV12 帧
-- `vp_yolo26_preprocess_node`：用 RGA 完成 NV12 预处理，产出模型输入和 BGR 图
-- `vp_rk_first_yolo26`：加载 RKNN 的 YOLO26 模型做检测
-- `vp_osd_node`：把检测框与标签绘制到画面
-- `vp_bgr_to_nv12_node`：将 OSD 后 BGR 转回 NV12
-- `vp_nv12_sdl_des_node`：SDL2 显示 NV12 画面（窗口 ESC/关闭可退出）
+- `vp_mpp_sdl_src_node`：读取本地视频，使用 FFmpeg demux + Rockchip MPP 硬解码，输出 NV12 帧（默认循环播放，并按源帧率节奏推流）
+- `vp_yolo26_preprocess_node`：基于配置文件执行 YOLO26 预处理，生成模型输入数据
+- `vp_rk_first_yolo26`：加载 RKNN 的 YOLO26 模型执行检测推理
+- `vp_osd_node`：将检测框、类别和置信度绘制到画面
+- `vp_bgr_to_nv12_node`：将 OSD 后的 BGR 图像转换为 NV12
+- `vp_nv12_sdl_des_node`：通过 SDL2 进行 NV12 实时显示
+
+主程序还包含以下运行行为：
+
+- 默认输入视频：`/mnt/nfs/datasets/video/uav.mp4`
+- 默认模型配置：`assets/configs/yolo26.json`
+- 支持 `Ctrl+C`、终端 `ESC`、SDL 窗口退出三种方式优雅结束
+- 启动 `vp_analysis_board` 显示非阻塞的数据流分析看板
 
 ## 2. 运行前准备
 
