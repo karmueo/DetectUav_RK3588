@@ -6,8 +6,6 @@
 
 ![无人机检测效果](assets/images/无人机_RK_VideoPipe.png)
 
-[无人机检测演示视频](assets/videos/无人机检测RK3588.mp4)
-
 ## 1. 主程序做了什么
 
 当前主程序为 `main.cc`，启动后会构建并运行一条固定的视频检测链路：

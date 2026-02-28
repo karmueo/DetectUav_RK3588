@@ -71,7 +71,6 @@ build
 mpp
 log/*
 .vscode/
-*.png
 
 AGENTS.md
 CLAUDE.md
