@@ -6,7 +6,6 @@ aux_source_directory(./ SRC)
 
 add_library(rknn_models STATIC
     ${SRC}
-    nanotrack.cpp
 )
 target_include_directories(rknn_models PUBLIC
     ${RKNN_RT_INCLUDES}
