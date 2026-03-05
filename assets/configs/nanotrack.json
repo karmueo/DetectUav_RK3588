@@ -1,7 +1,7 @@
 {
-    "backbone_path": "/mnt/nfs/weights/nanotrack/nano/backbone_127.rknn",
-    "backbone_search_path": "/mnt/nfs/weights/nanotrack/nano_backbone_search_255.rknn",
-    "head_path": "/mnt/nfs/weights/nanotracknano_head_255.rknn",
+    "backbone_path": "/mnt/nfs/weights/rk3588/nanotrack_backbone.rknn",
+    "backbone_search_path": "/mnt/nfs/weights/rk3588/nanotrack_backbone_search.rknn",
+    "head_path": "/mnt/nfs/weights/rk3588/nanotrack_head.rknn",
     "labels": ["target"],
     "alarm_labels": ["target"],
     "track_conf_threshold": 0.3,

@@ -72,6 +72,18 @@ target_link_libraries(detectuav_rk3588_gst
     vp_node
 )
 
+# NanoTrack单目标跟踪测试程序
+add_executable(nanotrack_test
+    tests/main_nanotrack_test.cc
+)
+target_link_libraries(nanotrack_test
+    ${COMMON_LIBS}
+    ${BASE_LIBS}
+    rknn_models
+    videocodec
+    vp_node
+)
+
 install(TARGETS  ${PROJECT_NAME} DESTINATION .)
 install(TARGETS detectuav_rk3588_simple DESTINATION .)
 install(TARGETS detectuav_rk3588_gst DESTINATION .)

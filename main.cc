@@ -14,6 +14,7 @@
 
 #include "nodes/infer/vp_rk_first_yolo26.h"
 #include "nodes/infer/vp_yolo26_preprocess_node.h"
+#include "nodes/track/vp_nanotrack_node.h"
 #include "nodes/osd/vp_osd_node.h"
 #include "nodes/vp_bgr_to_nv12_node.h"
 #include "nodes/vp_mpp_sdl_src_node.h"
@@ -123,7 +124,8 @@ static void handle_exit_signal(int signal_number) {
  * 2) argv[2]: SDL 视频驱动（可选，如 x11/wayland/kmsdrm）
  * 3) argv[3]: SDL 渲染驱动（可选，如 opengl/opengles2）
  * 4) argv[4]: YOLO26 配置路径（可选）
- * 5) argv[5]: 屏幕 sink（可选，如 ximagesink/waylandsink/kmssink）
+ * 5) argv[5]: NanoTrack 配置路径（可选）
+ * 6) argv[6]: 屏幕 sink（可选，如 ximagesink/waylandsink/kmssink）
  *
  * @param argc 参数个数。
  * @param argv 参数数组。
@@ -131,6 +133,7 @@ static void handle_exit_signal(int signal_number) {
  * @param sdl_video_driver 输出 SDL 视频驱动。
  * @param sdl_render_driver 输出 SDL 渲染驱动。
  * @param yolo26_config_path 输出 YOLO26 配置路径。
+ * @param nanotrack_config_path 输出 NanoTrack 配置路径。
  * @param screen_sink 输出屏幕 sink 名称。
  */
 static void parse_args(int argc,
@@ -139,6 +142,7 @@ static void parse_args(int argc,
                        std::string& sdl_video_driver,
                        std::string& sdl_render_driver,
                        std::string& yolo26_config_path,
+                       std::string& nanotrack_config_path,
                        std::string& screen_sink) {
     if (argc > 1 && argv[1] != nullptr) {
         file_path = argv[1];
@@ -153,14 +157,17 @@ static void parse_args(int argc,
         yolo26_config_path = argv[4];
     }
     if (argc > 5 && argv[5] != nullptr) {
-        screen_sink = argv[5];
+        nanotrack_config_path = argv[5];
+    }
+    if (argc > 6 && argv[6] != nullptr) {
+        screen_sink = argv[6];
     }
 }
 
 /**
  * @brief 主程序入口，构建线性视频管线。
  *
- * `src -> yolo26_preprocess -> yolo26 -> osd -> bgr_to_nv12 -> nv12_sdl_des`。
+ * `src -> yolo26_preprocess -> yolo26 -> nanotrack -> osd -> bgr_to_nv12 -> nv12_sdl_des`。
  *
  * @param argc 参数个数。
  * @param argv 参数数组。
@@ -182,22 +189,25 @@ int main(int argc, char** argv) {
     vp_nodes::vp_nv12_sdl_des_reset_exit_flag();
 
     // 默认输入视频路径。
-    std::string file_path = "/mnt/nfs/datasets/video/uav.mp4";
+    std::string file_path = "/mnt/nfs/datasets/video/uav4.mp4";
     // SDL 视频驱动（默认自动选择）。
     std::string sdl_video_driver = "";
     // SDL 渲染驱动（默认自动选择）。
     std::string sdl_render_driver = "";
     // YOLO26 配置路径。
     std::string yolo26_config_path = "assets/configs/yolo26.json";
+    // NanoTrack 配置路径。
+    std::string nanotrack_config_path = "assets/configs/nanotrack.json";
     // 屏幕显示 sink（保留参数兼容，当前流程未使用该参数）。
     std::string screen_sink = "autovideosink";
-    parse_args(argc, argv, file_path, sdl_video_driver, sdl_render_driver, yolo26_config_path, screen_sink);
+    parse_args(argc, argv, file_path, sdl_video_driver, sdl_render_driver, yolo26_config_path, nanotrack_config_path, screen_sink);
 
-    VP_INFO(vp_utils::string_format("[main] file=%s sdl_video_driver=%s sdl_render_driver=%s yolo26_cfg=%s sink=%s",
+    VP_INFO(vp_utils::string_format("[main] file=%s sdl_video_driver=%s sdl_render_driver=%s yolo26_cfg=%s nanotrack_cfg=%s sink=%s",
                                     file_path.c_str(),
                                     sdl_video_driver.empty() ? "auto" : sdl_video_driver.c_str(),
                                     sdl_render_driver.empty() ? "auto" : sdl_render_driver.c_str(),
                                     yolo26_config_path.c_str(),
+                                    nanotrack_config_path.c_str(),
                                     screen_sink.c_str()));
 
     // MPP 文件源节点（纯硬解码并向下游下发 NV12 数据）。
@@ -213,6 +223,8 @@ int main(int argc, char** argv) {
     auto yolo26_pre_0 = std::make_shared<vp_nodes::vp_yolo26_preprocess_node>("yolo26_pre_0", yolo26_config_path);
     // YOLO26 检测节点。
     auto yolo26_0 = std::make_shared<vp_nodes::vp_rk_first_yolo26>("yolo26_0", yolo26_config_path);
+    // NanoTrack 单目标跟踪节点。
+    auto nanotrack_0 = std::make_shared<vp_nodes::vp_nanotrack_node>("nanotrack_0", nanotrack_config_path);
     // OSD 绘制节点。
     auto osd_0 = std::make_shared<vp_nodes::vp_osd_node>("osd_0");
     // BGR 转 NV12 适配节点（把 OSD 结果转为 NV12 供 SDL 显示）。
@@ -228,7 +240,8 @@ int main(int argc, char** argv) {
     // 业务主链路（保持检测/OSD处理结构，输出改为 SDL NV12 显示）。
     yolo26_pre_0->attach_to({src_0});
     yolo26_0->attach_to({yolo26_pre_0});
-    osd_0->attach_to({yolo26_0});
+    nanotrack_0->attach_to({yolo26_0});
+    osd_0->attach_to({nanotrack_0});
     bgr_to_nv12_0->attach_to({osd_0});
     nv12_des_0->attach_to({bgr_to_nv12_0});
 
