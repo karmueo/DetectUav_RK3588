@@ -58,7 +58,6 @@ struct NanoTrackConfig : public Config {
     std::string backbone_search_path;  ///< Path to backbone search model.
     std::string head_path;             ///< Path to head model.
     int npu_core = 3;                  ///< NPU core assignment (0-2 specific, 3=auto).
-    float track_conf_threshold = 0.3f; ///< Tracking confidence threshold for exit.
 };
 
 /**
@@ -204,12 +203,6 @@ public:
      */
     void reset();
 
-    /**
-     * @brief Get tracking confidence threshold.
-     * @return Confidence threshold value.
-     */
-    float get_track_conf_threshold() const { return track_conf_threshold_; }
-
 private:
     /**
      * @brief Convert tensor from NHWC to NCHW format.
@@ -297,8 +290,6 @@ private:
     NanoTensor z_feat_nchw_;          ///< Cached template feature.
     std::vector<float> z_feat_nhwc_buf_; ///< Buffer for NHWC conversion.
     std::vector<float> x_feat_nhwc_buf_; ///< Buffer for NHWC conversion.
-
-    float track_conf_threshold_;      ///< Confidence threshold for tracking exit.
 
     // RGA cache buffers
     int cache_src_width_ = 0;         ///< Cached source width.

@@ -151,7 +151,113 @@ cmake --install build
 
 > 注：关于.rknn模型的训练和生成，请参考[fast_yolo26_rknn](https://github.com/karmueo/fast_yolo26_rknn)
 
-### 2.6 准备输入视频
+#### 2.5.1 YOLO26 配置文件说明
+
+配置文件路径：`assets/configs/yolo26.json`
+
+```json
+{
+    "model_path": "/mnt/nfs/weights/rk3588/yolo26n_352_1c_no-p2.rknn",
+    "labels": ["uav"],
+    "alarm_labels": ["uav"],
+    "model_type": "YOLO26",
+    "input_width": 640,
+    "input_height": 352,
+    "conf_threshold": 0.5,
+    "nms_threshold": 0.45,
+    "infer_skip_frames": 0,
+    "preprocess_debug_log_interval": 300
+}
+```
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `model_path` | string | - | RKNN 模型文件路径（必须存在） |
+| `labels` | array | ["uav"] | 检测类别标签列表 |
+| `alarm_labels` | array | ["uav"] | 需要报警的类别标签列表 |
+| `model_type` | string | "YOLO26" | 模型类型标识 |
+| `input_width` | int | 640 | 模型输入宽度 |
+| `input_height` | int | 352 | 模型输入高度 |
+| `conf_threshold` | float | 0.5 | 检测置信度阈值（0.0-1.0） |
+| `nms_threshold` | float | 0.45 | NMS 非极大值抑制阈值（0.0-1.0） |
+| `infer_skip_frames` | int | 0 | 跳帧推理数（0 表示每帧都推理） |
+| `preprocess_debug_log_interval` | int | 300 | 预处理调试日志输出间隔（帧数） |
+
+### 2.6 准备 NanoTrack 配置与模型
+
+NanoTrack 是单目标跟踪节点，可与 YOLO 检测节点配合使用。配置文件路径：`assets/configs/nanotrack.json`
+
+```json
+{
+    "backbone_path": "/mnt/nfs/weights/rk3588/nanotrack_backbone.rknn",
+    "backbone_search_path": "/mnt/nfs/weights/rk3588/nanotrack_backbone_search.rknn",
+    "head_path": "/mnt/nfs/weights/rk3588/nanotrack_head.rknn",
+    "labels": ["target"],
+    "npu_core": 3,
+    "preprocess_debug_log_interval": 300,
+
+    "target_class_id": -1,
+    "selection_conf_threshold": 0.5,
+    "exit_conf_threshold": 0.3,
+    "iou_threshold": 0.3,
+    "max_no_detection_frames": 30
+}
+```
+
+#### 2.6.1 模型路径配置
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `backbone_path` | string | Backbone 网络模型路径 |
+| `backbone_search_path` | string | Backbone Search 网络模型路径 |
+| `head_path` | string | Head 网络模型路径 |
+
+#### 2.6.2 基础配置
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `labels` | array | ["target"] | 跟踪目标标签 |
+| `npu_core` | int | 3 | NPU 核心编号（0-3，3 表示自动选择） |
+| `preprocess_debug_log_interval` | int | 300 | 调试日志输出间隔 |
+
+#### 2.6.3 跟踪策略配置
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `target_class_id` | int | -1 | 跟踪目标类别 ID，-1 表示不过滤类别 |
+| `selection_conf_threshold` | float | 0.5 | 目标选择的最低置信度阈值 |
+| `exit_conf_threshold` | float | 0.3 | 跟踪退出的置信度阈值（≤0 禁用） |
+| `iou_threshold` | float | 0.3 | 跟踪框与检测框的最小 IoU 阈值（≤0 禁用） |
+| `max_no_detection_frames` | int | 30 | 无检测结果时最大容忍帧数（≤0 禁用） |
+
+#### 2.6.4 状态机说明
+
+NanoTrack 节点采用状态机架构：
+
+```
+┌─────────────┐    存在满足条件的目标    ┌─────────────┐
+│  SEARCHING  │ ──────────────────────> │  TRACKING   │
+└─────────────┘                         └─────────────┘
+       ↑                                       │
+       │                                       │ 满足任一退出条件
+       │         ┌─────────────────────────────┘
+       │         │  1. 跟踪置信度 < exit_conf_threshold
+       │         │  2. IoU < iou_threshold
+       │         │  3. 无检测帧数 >= max_no_detection_frames
+       └─────────┘
+```
+
+**跟踪开始条件：**
+- 检测目标的 `class_id` 匹配 `target_class_id`（若为 -1 则不过滤）
+- 检测目标的置信度 ≥ `selection_conf_threshold`
+- 选择距离画面中心最近的目标
+
+**跟踪退出条件（任一满足即退出）：**
+1. 跟踪置信度低于 `exit_conf_threshold`
+2. 跟踪框与所有检测框的 IoU 都低于 `iou_threshold`
+3. 连续 `max_no_detection_frames` 帧无检测结果
+
+### 2.7 准备输入视频
 
 `main.cc` 默认输入为 `/mnt/nfs/datasets/video/uav.mp4`。你可以：
 

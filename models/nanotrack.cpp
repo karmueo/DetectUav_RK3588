@@ -184,7 +184,7 @@ std::vector<NanoTensor> NanoRknnModel::run(const std::vector<rknn_input>& inputs
 // ============================================================================
 
 NanoTrack::NanoTrack(const NanoTrackConfig& config)
-    : params_(), track_conf_threshold_(config.track_conf_threshold) {
+    : params_() {
 
     spdlog::info("Loading NanoTrack models...");
 
@@ -201,8 +201,7 @@ NanoTrack::NanoTrack(const NanoTrackConfig& config)
     init_window();
     points_ = generate_points(params_.STRIDE, score_size_);
 
-    spdlog::info("NanoTrack initialized (score_size={}, track_conf={})",
-                 score_size_, track_conf_threshold_);
+    spdlog::info("NanoTrack initialized (score_size={})", score_size_);
 }
 
 NanoTrack::~NanoTrack() {
@@ -224,7 +223,6 @@ int NanoTrack::load_config(const std::string& json_path, NanoTrackConfig& config
         config.backbone_search_path = j_conf.value("backbone_search_path", "");
         config.head_path = j_conf.value("head_path", "");
         config.npu_core = j_conf.value("npu_core", 3);
-        config.track_conf_threshold = j_conf.value("track_conf_threshold", 0.3f);
 
         if (config.backbone_path.empty() ||
             config.backbone_search_path.empty() ||

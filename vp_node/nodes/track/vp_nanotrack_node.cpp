@@ -78,11 +78,6 @@ vp_nanotrack_node::vp_nanotrack_node(std::string node_name,
         config_.exit_conf_threshold = exit_conf_threshold;
     }
 
-    // Apply exit confidence threshold to NanoTrack internal config
-    if (config_.exit_conf_threshold > 0) {
-        nanotrack_config.track_conf_threshold = config_.exit_conf_threshold;
-    }
-
     tracker_ = std::make_shared<NanoTrack>(nanotrack_config);
     VP_INFO(vp_utils::string_format("[%s] NanoTrack node initialized "
             "(state=SEARCHING, target_class=%d, selection_conf=%.2f, exit_conf=%.2f, iou_threshold=%.2f, max_no_detect=%d)",
