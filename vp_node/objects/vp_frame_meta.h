@@ -88,7 +88,20 @@ namespace vp_objects {
 
         // ba results created/appened by ba nodes.
         std::vector<std::shared_ptr<vp_objects::vp_ba_result>> ba_results;
-        
+
+        // ==================== Single Object Tracking (NanoTrack) ====================
+        // Whether single object tracking is active.
+        bool single_track_active = false;
+        // Track confidence score from NanoTrack.
+        float single_track_score = 0.0f;
+        // Current tracking bounding box [x, y, width, height].
+        std::array<float, 4> single_track_bbox{0, 0, 0, 0};
+        // Frame index when tracking was initialized.
+        int single_track_init_frame = -1;
+        // Whether tracking should exit due to low confidence.
+        bool single_track_exit = false;
+        // ============================================================================
+
         // get target ptrs by target ids in current frame, ONLY supports vp_frame_target
         std::vector<std::shared_ptr<vp_frame_target>> get_targets_by_ids(const std::vector<int>& ids);
 
