@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
     VP_LOGGER_INIT();
 
     // 默认配置
-    std::string video_path = "/mnt/nfs/datasets/video/uav4.mp4";
+    std::string video_path = "/mnt/nfs/datasets/video/uav.mp4";
     std::string yolo_config = "assets/configs/yolo26.json";
     std::string nanotrack_config = "assets/configs/nanotrack.json";
 

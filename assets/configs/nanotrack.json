@@ -6,5 +6,11 @@
     "alarm_labels": ["target"],
     "track_conf_threshold": 0.3,
     "npu_core": 3,
-    "preprocess_debug_log_interval": 300
+    "preprocess_debug_log_interval": 300,
+
+    "target_class_id": -1,
+    "selection_conf_threshold": 0.5,
+    "exit_conf_threshold": 0.3,
+    "iou_threshold": 0.3,
+    "max_no_detection_frames": 30
 }
