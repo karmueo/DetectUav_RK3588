@@ -72,21 +72,9 @@ target_link_libraries(detectuav_rk3588_gst
     vp_node
 )
 
-add_executable(detectuav_rk3588_rtsp
-    rtsp_main.cc
-)
-target_link_libraries(detectuav_rk3588_rtsp
-    ${COMMON_LIBS}
-    ${BASE_LIBS}
-    rknn_models
-    videocodec
-    vp_node
-)
-
 install(TARGETS  ${PROJECT_NAME} DESTINATION .)
 install(TARGETS detectuav_rk3588_simple DESTINATION .)
 install(TARGETS detectuav_rk3588_gst DESTINATION .)
-install(TARGETS detectuav_rk3588_rtsp DESTINATION .)
 install(PROGRAMS ${BASE_LIBS} DESTINATION lib)
 install(PROGRAMS ${RKNN_RT_LIB} DESTINATION lib)
 install(PROGRAMS ${MPP_LIB} DESTINATION lib)
